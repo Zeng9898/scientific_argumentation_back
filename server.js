@@ -34,6 +34,9 @@ const PROMPT_IDS_BY_GROUP = {
     0: process.env.OPENAI_PROMPT_ID_Q1_EXPERIMENT || process.env.OPENAI_PROMPT_ID_Q1,
     1: process.env.OPENAI_PROMPT_ID_Q2_EXPERIMENT || process.env.OPENAI_PROMPT_ID_Q2,
     2: process.env.OPENAI_PROMPT_ID_Q3_EXPERIMENT || process.env.OPENAI_PROMPT_ID_Q3,
+    3: process.env.OPENAI_PROMPT_ID_Q4_EXPERIMENT || process.env.OPENAI_PROMPT_ID_Q1,
+    4: process.env.OPENAI_PROMPT_ID_Q5_EXPERIMENT || process.env.OPENAI_PROMPT_ID_Q2,
+    5: process.env.OPENAI_PROMPT_ID_Q6_EXPERIMENT || process.env.OPENAI_PROMPT_ID_Q3,
     reflection:
       process.env.OPENAI_PROMPT_ID_REFLECTION_EXPERIMENT ||
       process.env.OPENAI_PROMPT_ID_REFLECTION,
@@ -42,6 +45,9 @@ const PROMPT_IDS_BY_GROUP = {
     0: process.env.OPENAI_PROMPT_ID_Q1_CONTROL || process.env.OPENAI_PROMPT_ID_Q1,
     1: process.env.OPENAI_PROMPT_ID_Q2_CONTROL || process.env.OPENAI_PROMPT_ID_Q2,
     2: process.env.OPENAI_PROMPT_ID_Q3_CONTROL || process.env.OPENAI_PROMPT_ID_Q3,
+    3: process.env.OPENAI_PROMPT_ID_Q4_CONTROL || process.env.OPENAI_PROMPT_ID_Q1,
+    4: process.env.OPENAI_PROMPT_ID_Q5_CONTROL || process.env.OPENAI_PROMPT_ID_Q2,
+    5: process.env.OPENAI_PROMPT_ID_Q6_CONTROL || process.env.OPENAI_PROMPT_ID_Q3,
     reflection:
       process.env.OPENAI_PROMPT_ID_REFLECTION_CONTROL ||
       process.env.OPENAI_PROMPT_ID_REFLECTION,
@@ -190,12 +196,12 @@ async function getStudentWithStats(studentId) {
 }
 
 function getQuestionSetup(questionIndex, groupType) {
-  if (questionIndex === undefined || questionIndex === null || ![0, 1, 2].includes(Number(questionIndex))) {
+  if (questionIndex === undefined || questionIndex === null || ![0, 1, 2, 3, 4, 5].includes(Number(questionIndex))) {
     return {
       ok: false,
       status: 400,
       body: {
-        error: `questionIndex must be 0, 1, or 2 (received: ${questionIndex})`,
+        error: `questionIndex must be 0, 1, 2, 3, 4, or 5 (received: ${questionIndex})`,
         code: "invalid_question_index",
       },
     };
