@@ -148,6 +148,10 @@ async function initDb() {
   const schemaPath = path.join(__dirname, "db", "schema.sql");
   const schemaSql = await fs.readFile(schemaPath, "utf8");
   await pool.query(schemaSql);
+  await pool.query("alter table ai_conversations add column if not exists level_id varchar(64)");
+  await pool.query(
+    "create index if not exists idx_ai_conversations_reflection_level on ai_conversations(student_id, surface, level_id)"
+  );
   await pool.query("select 1");
   console.log("[PostgreSQL] connected");
 }
@@ -235,6 +239,12 @@ function getReflectionPromptId(groupType) {
   return PROMPT_IDS_BY_GROUP[groupType]?.reflection ?? null;
 }
 
+function normalizeLevelId(levelId) {
+  if (typeof levelId !== "string") return null;
+  const trimmed = levelId.trim();
+  return /^level-\d+$/.test(trimmed) ? trimmed : null;
+}
+
 async function insertMessage(fields) {
   await pool.query(
     `
@@ -280,6 +290,7 @@ async function upsertConversation(openaiConversationId, fields) {
         openai_conversation_id,
         student_id,
         surface,
+        level_id,
         question_index,
         prompt_id,
         group_type_snapshot,
@@ -294,13 +305,14 @@ async function upsertConversation(openaiConversationId, fields) {
         updated_at
       )
       values (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
-        coalesce($14, now()), coalesce($15, now())
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+        coalesce($15, now()), coalesce($16, now())
       )
       on conflict (openai_conversation_id)
       do update set
         student_id = excluded.student_id,
         surface = excluded.surface,
+        level_id = coalesce(excluded.level_id, ai_conversations.level_id),
         question_index = excluded.question_index,
         prompt_id = excluded.prompt_id,
         group_type_snapshot = excluded.group_type_snapshot,
@@ -317,6 +329,7 @@ async function upsertConversation(openaiConversationId, fields) {
       openaiConversationId,
       fields.studentId,
       fields.surface ?? null,
+      fields.levelId ?? null,
       fields.questionIndex ?? null,
       fields.promptId ?? null,
       fields.groupTypeSnapshot ?? null,
@@ -353,6 +366,29 @@ async function getLatestArgumentConversation(studentId, questionIndex) {
       limit 1
     `,
     [studentId, questionIndex]
+  );
+
+  return rows[0] ?? null;
+}
+
+async function getLatestReflectionConversation(studentId, levelId) {
+  if (!levelId) return null;
+
+  const { rows } = await pool.query(
+    `
+      select
+        openai_conversation_id,
+        prompt_id,
+        level_id,
+        last_response_id
+      from ai_conversations
+      where student_id = $1
+        and surface = 'reflection'
+        and level_id = $2
+      order by updated_at desc, id desc
+      limit 1
+    `,
+    [studentId, levelId]
   );
 
   return rows[0] ?? null;
@@ -788,6 +824,7 @@ app.post("/api/chat", requireAuth, async (req, res) => {
 app.post("/api/reflection", requireAuth, async (req, res) => {
   try {
     const { userMessage, conversationId } = req.body ?? {};
+    const levelId = normalizeLevelId(req.body?.levelId);
     const reflectionPromptId = getReflectionPromptId(req.student.groupType);
     const normalizedUserMessage = typeof userMessage === "string" ? userMessage.trim() : "";
     const isSyntheticReflectionKickoff = normalizedUserMessage === "（反思開始）";
@@ -823,23 +860,54 @@ app.post("/api/reflection", requireAuth, async (req, res) => {
         });
       }
     } else {
-      conversation = await openai.conversations.create({
-        metadata: {
-          app: "scientific_argumentation",
+      const existingReflection = await getLatestReflectionConversation(req.student.id, levelId);
+      if (existingReflection) {
+        try {
+          conversation = await openai.conversations.retrieve(existingReflection.openai_conversation_id);
+        } catch (retrieveErr) {
+          console.error("[api/reflection] latest conversation retrieve failed:", retrieveErr.message);
+        }
+
+        if (conversation && isSyntheticReflectionKickoff) {
+          const messages = await getConversationMessages(conversation.id);
+          if (messages.length === 0) {
+            console.warn(
+              `[api/reflection] latest reflection conversation has no messages; continuing kickoff: ${conversation.id}`
+            );
+          } else {
+            return res.json({
+              assistantMessage: "",
+              conversationId: conversation.id,
+              restored: true,
+              messages,
+              groupType: req.student.groupType,
+              levelId,
+            });
+          }
+        }
+      }
+
+      if (!conversation) {
+        conversation = await openai.conversations.create({
+          metadata: {
+            app: "scientific_argumentation",
+            surface: "reflection",
+            levelId: levelId ?? "",
+            studentId: String(req.student.id),
+            studentNumber: req.student.studentNumber,
+            groupType: req.student.groupType,
+          },
+        });
+        await upsertConversation(conversation.id, {
+          studentId: req.student.id,
           surface: "reflection",
-          studentId: String(req.student.id),
-          studentNumber: req.student.studentNumber,
-          groupType: req.student.groupType,
-        },
-      });
-      await upsertConversation(conversation.id, {
-        studentId: req.student.id,
-        surface: "reflection",
-        promptId: reflectionPromptId,
-        groupTypeSnapshot: req.student.groupType,
-        createdAt: now,
-        updatedAt: now,
-      });
+          levelId,
+          promptId: reflectionPromptId,
+          groupTypeSnapshot: req.student.groupType,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
     }
 
     if (!isSyntheticReflectionKickoff) {
@@ -866,6 +934,7 @@ app.post("/api/reflection", requireAuth, async (req, res) => {
     await upsertConversation(conversation.id, {
       studentId: req.student.id,
       surface: "reflection",
+      levelId,
       promptId: reflectionPromptId,
       groupTypeSnapshot: req.student.groupType,
       lastResponseId: response.id,
@@ -889,6 +958,7 @@ app.post("/api/reflection", requireAuth, async (req, res) => {
       conversationId: conversation.id,
       responseId: response.id,
       groupType: req.student.groupType,
+      levelId,
     });
   } catch (err) {
     const message = getErrorMessage(err);

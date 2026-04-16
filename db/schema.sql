@@ -24,6 +24,7 @@ create table if not exists ai_conversations (
   openai_conversation_id text not null unique,
   student_id bigint not null references students(id) on delete cascade,
   surface varchar(32) not null check (surface in ('argument_chat', 'reflection')),
+  level_id varchar(64),
   question_index integer,
   prompt_id text,
   group_type_snapshot varchar(16) not null check (group_type_snapshot in ('experiment', 'control')),
