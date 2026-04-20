@@ -39,6 +39,8 @@ const PROMPT_IDS_BY_GROUP = {
     5: process.env.OPENAI_PROMPT_ID_Q6_EXPERIMENT || process.env.OPENAI_PROMPT_ID_Q3,
     6: process.env.OPENAI_PROMPT_ID_Q7_EXPERIMENT || process.env.OPENAI_PROMPT_ID_Q1,
     7: process.env.OPENAI_PROMPT_ID_Q8_EXPERIMENT || process.env.OPENAI_PROMPT_ID_Q2,
+    8: process.env.OPENAI_PROMPT_ID_Q9_EXPERIMENT || process.env.OPENAI_PROMPT_ID_Q3,
+    9: process.env.OPENAI_PROMPT_ID_Q10_EXPERIMENT || process.env.OPENAI_PROMPT_ID_Q1,
     reflection:
       process.env.OPENAI_PROMPT_ID_REFLECTION_EXPERIMENT ||
       process.env.OPENAI_PROMPT_ID_REFLECTION,
@@ -52,6 +54,8 @@ const PROMPT_IDS_BY_GROUP = {
     5: process.env.OPENAI_PROMPT_ID_Q6_CONTROL || process.env.OPENAI_PROMPT_ID_Q3,
     6: process.env.OPENAI_PROMPT_ID_Q7_CONTROL || process.env.OPENAI_PROMPT_ID_Q1,
     7: process.env.OPENAI_PROMPT_ID_Q8_CONTROL || process.env.OPENAI_PROMPT_ID_Q2,
+    8: process.env.OPENAI_PROMPT_ID_Q9_CONTROL || process.env.OPENAI_PROMPT_ID_Q3,
+    9: process.env.OPENAI_PROMPT_ID_Q10_CONTROL || process.env.OPENAI_PROMPT_ID_Q1,
     reflection:
       process.env.OPENAI_PROMPT_ID_REFLECTION_CONTROL ||
       process.env.OPENAI_PROMPT_ID_REFLECTION,
@@ -97,6 +101,10 @@ const RESPONSE_JSON_SCHEMA = {
     "requiresRestatement",
   ],
 };
+
+const VALID_QUESTION_INDICES = Object.keys(PROMPT_IDS_BY_GROUP.experiment)
+  .filter((key) => key !== "reflection")
+  .map(Number);
 
 const app = express();
 const corsOptions = { origin: CORS_ORIGINS };
@@ -207,13 +215,13 @@ function getQuestionSetup(questionIndex, groupType) {
   if (
     questionIndex === undefined ||
     questionIndex === null ||
-    ![0, 1, 2, 3, 4, 5, 6, 7].includes(Number(questionIndex))
+    !VALID_QUESTION_INDICES.includes(Number(questionIndex))
   ) {
     return {
       ok: false,
       status: 400,
       body: {
-        error: `questionIndex must be 0, 1, 2, 3, 4, 5, 6, or 7 (received: ${questionIndex})`,
+        error: `questionIndex must be one of ${VALID_QUESTION_INDICES.join(", ")} (received: ${questionIndex})`,
         code: "invalid_question_index",
       },
     };
