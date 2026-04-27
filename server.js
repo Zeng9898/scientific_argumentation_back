@@ -44,6 +44,8 @@ const PROMPT_IDS_BY_GROUP = {
     10: process.env.OPENAI_PROMPT_ID_Q11_EXPERIMENT || process.env.OPENAI_PROMPT_ID_Q2,
     11: process.env.OPENAI_PROMPT_ID_Q12_EXPERIMENT || process.env.OPENAI_PROMPT_ID_Q3,
     12: process.env.OPENAI_PROMPT_ID_Q13_EXPERIMENT || process.env.OPENAI_PROMPT_ID_Q1,
+    13: process.env.OPENAI_PROMPT_ID_Q14_EXPERIMENT || process.env.OPENAI_PROMPT_ID_Q2,
+    14: process.env.OPENAI_PROMPT_ID_Q15_EXPERIMENT || process.env.OPENAI_PROMPT_ID_Q3,
     reflection:
       process.env.OPENAI_PROMPT_ID_REFLECTION_EXPERIMENT ||
       process.env.OPENAI_PROMPT_ID_REFLECTION,
@@ -62,6 +64,8 @@ const PROMPT_IDS_BY_GROUP = {
     10: process.env.OPENAI_PROMPT_ID_Q11_CONTROL || process.env.OPENAI_PROMPT_ID_Q2,
     11: process.env.OPENAI_PROMPT_ID_Q12_CONTROL || process.env.OPENAI_PROMPT_ID_Q3,
     12: process.env.OPENAI_PROMPT_ID_Q13_CONTROL || process.env.OPENAI_PROMPT_ID_Q1,
+    13: process.env.OPENAI_PROMPT_ID_Q14_CONTROL || process.env.OPENAI_PROMPT_ID_Q2,
+    14: process.env.OPENAI_PROMPT_ID_Q15_CONTROL || process.env.OPENAI_PROMPT_ID_Q3,
     reflection:
       process.env.OPENAI_PROMPT_ID_REFLECTION_CONTROL ||
       process.env.OPENAI_PROMPT_ID_REFLECTION,
