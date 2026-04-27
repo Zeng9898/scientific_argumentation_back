@@ -14,17 +14,20 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, ".env") });
 
 const PORT = process.env.PORT || 3000;
-const CORS_ORIGINS = (
-  process.env.CORS_ORIGINS ??
-  [
-    "https://zeng9898.github.io",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-  ].join(",")
-)
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+const DEFAULT_CORS_ORIGINS = [
+  "https://zeng9898.github.io",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+];
+const CORS_ORIGINS = Array.from(
+  new Set([
+    ...DEFAULT_CORS_ORIGINS,
+    ...(process.env.CORS_ORIGINS ?? "")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  ])
+);
 
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 const AUTH_SESSION_DAYS = Number(process.env.AUTH_SESSION_DAYS || 7);
@@ -117,7 +120,18 @@ const VALID_QUESTION_INDICES = Object.keys(PROMPT_IDS_BY_GROUP.experiment)
   .map(Number);
 
 const app = express();
-const corsOptions = { origin: CORS_ORIGINS };
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin || CORS_ORIGINS.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error(`CORS origin not allowed: ${origin}`));
+  },
+  allowedHeaders: ["Content-Type", "Authorization", "ngrok-skip-browser-warning"],
+  methods: ["GET", "POST", "OPTIONS"],
+  optionsSuccessStatus: 204,
+};
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
 app.use(express.json({ limit: "1mb" }));
